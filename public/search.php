@@ -79,25 +79,92 @@ echo "<br>";
 echo '--------------------------';
 echo "<br>";
 // Лічильник появ слів
-$wordCounts = [];
-foreach ($words as $word) {
-    $lowercaseWord = $word; // Перетворюємо на той самий регістр (без вбудованих функцій)
-    $keyExists = false;
+// Масив для збереження слів
+$words = [];
+$currentWord = "";
+$index = 0;
 
-    // Перевіряємо, чи вже є це слово в лічильнику
-    foreach ($wordCounts as $key => $value) {
-        if ($key === $lowercaseWord) {
-            $wordCounts[$key]++; // Збільшуємо лічильник
+// Обробляємо текст посимвольно
+while (isset($text[$index])) {
+    $byte = $text[$index];
 
-            $keyExists = true;
-            break;
+    // Перевіряємо, чи це початок нового UTF-8 символу (перший байт)
+    if (($byte & "\xC0") !== "\x80") {
+        // Якщо це літера (спрощена перевірка для кирилиці та латиниці)
+        if (
+            ($byte >= "\xD0" && $byte <= "\xD3") || // Кирилиця
+            ($byte >= 'A' && $byte <= 'Z') ||       // Великі літери латиниці
+            ($byte >= 'a' && $byte <= 'z')          // Малі літери латиниці
+        ) {
+            $currentWord .= $byte;
+        } else {
+            // Якщо зустріли пробіл або символ, завершуємо поточне слово
+            if ($currentWord !== "") {
+                $words[] = $currentWord;
+                $currentWord = "";
+            }
         }
-
+    } else {
+        // Якщо це частина багатобайтового символу, додаємо до поточного слова
+        $currentWord .= $byte;
     }
 
-    // Якщо слова ще немає в лічильнику, додаємо його
-    if (!$keyExists) {
-        $wordCounts[$lowercaseWord] = 1;
+    $index++; // Наступний байт
+}
+
+// Додаємо останнє слово, якщо залишилося
+if ($currentWord !== "") {
+    $words[] = $currentWord;
+}
+
+// Функція для перетворення символів у нижній регістр (враховуючи кирилицю)
+function toLowerCase($word)
+{
+    $result = "";
+    $i = 0;
+
+    while (isset($word[$i])) {
+        $byte = $word[$i];
+
+        // Якщо це велика літера латиниці
+        if ($byte >= 'A' && $byte <= 'Z') {
+            $result .= $byte + ("a" - "A"); // Перетворюємо у малу літеру
+        } // Якщо це велика літера кирилиці
+        elseif ($byte === "\xD0" && isset($word[$i + 1])) {
+            $secondByte = $word[$i + 1];
+            if ($secondByte >= "\x90" && $secondByte <= "\x9F") { // Великі літери кирилиці
+                $result .= "\xD1" . ($secondByte + ("\xB0" - "\x90"));
+            } else {
+                $result .= $byte . $secondByte;
+            }
+            $i++; // Пропускаємо наступний байт
+        } elseif ($byte === "\xD1" && isset($word[$i + 1])) {
+            $secondByte = $word[$i + 1];
+            if ($secondByte >= "\x80" && $secondByte <= "\x8F") { // Великі літери "я", "є", "ї", "ґ"
+                $result .= "\xD1" . ($secondByte + ("\x90" - "\x80"));
+            } else {
+                $result .= $byte . $secondByte;
+            }
+            $i++; // Пропускаємо наступний байт
+        } else {
+            $result .= $byte; // Залишаємо без змін
+        }
+
+        $i++; // Наступний байт
+    }
+
+    return $result;
+}
+
+// Лічильник появ слів
+$wordCounts = [];
+foreach ($words as $word) {
+    $lowercaseWord = toLowerCase($word); // Перетворюємо у нижній регістр
+
+    if (isset($wordCounts[$lowercaseWord])) {
+        $wordCounts[$lowercaseWord]++; // Збільшуємо лічильник
+    } else {
+        $wordCounts[$lowercaseWord] = 1; // Додаємо нове слово
     }
 }
 
@@ -105,18 +172,18 @@ foreach ($words as $word) {
 $result = [];
 foreach ($wordCounts as $word => $count) {
     if ($count >= 5 && $count <= 10) {
-        $result[] = $word;
+        $result[] = [$word, $count];
     }
 }
+
 // Виведення результатів
 if (!empty($result)) {
     echo "Слова, які зустрічаються від 5 до 10 разів:\n";
-    foreach ($result as $word) {
-        echo "<br>" . $word ." зустрічається - " . $wordCounts[$word] ." ". "раз". "\n";
+    foreach ($result as $wordData) {
+        echo "<br>" . $wordData[0] . " зустрічається - " . $wordData[1] . " разів \n";
     }
 } else {
     echo "Слова не знайдено.\n";
 }
-
 
 ?>
