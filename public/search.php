@@ -78,7 +78,11 @@ if (!empty($result)) {
 echo "<br>";
 echo '--------------------------';
 echo "<br>";
-// Лічильник появ слів
+
+$text = "Це текст з тексту, де текст повторюється кілька разів.
+ Текст, текст,текст,текст! ох,Ох,ох,ох,ох,ох,ох,ох,Ох.
+ лол, лол, лол, лол, лол, лол, Лол, ЛОЛ";
+
 // Масив для збереження слів
 $words = [];
 $currentWord = "";
@@ -116,47 +120,50 @@ while (isset($text[$index])) {
 if ($currentWord !== "") {
     $words[] = $currentWord;
 }
-
-// Функція для перетворення символів у нижній регістр (враховуючи кирилицю)
-function toLowerCase($word)
-{
+function toLowerCase($word) {
     $result = "";
     $i = 0;
 
     while (isset($word[$i])) {
         $byte = $word[$i];
 
-        // Якщо це велика літера латиниці
-        if ($byte >= 'A' && $byte <= 'Z') {
-            $result .= $byte + ("a" - "A"); // Перетворюємо у малу літеру
-        } // Якщо це велика літера кирилиці
-        elseif ($byte === "\xD0" && isset($word[$i + 1])) {
+        // Перевіряємо, чи це перший байт кириличної літери
+        if ($byte === "\xD0" && isset($word[$i + 1])) {
             $secondByte = $word[$i + 1];
-            if ($secondByte >= "\x90" && $secondByte <= "\x9F") { // Великі літери кирилиці
-                $result .= "\xD1" . ($secondByte + ("\xB0" - "\x90"));
+
+            // Перетворюємо А-П (0x90 - 0x9F)
+            if ($secondByte >= "\x90" && $secondByte <= "\x9F") {
+                $result .= "\xD0" . chr(ord($secondByte) + 32);
+            }
+            // Перетворюємо Р-Я (0xA0 - 0xAF)
+            elseif ($secondByte >= "\xA0" && $secondByte <= "\xAF") {
+                $result .= "\xD1" . chr(ord($secondByte) - 32);
             } else {
                 $result .= $byte . $secondByte;
             }
+
             $i++; // Пропускаємо наступний байт
-        } elseif ($byte === "\xD1" && isset($word[$i + 1])) {
-            $secondByte = $word[$i + 1];
-            if ($secondByte >= "\x80" && $secondByte <= "\x8F") { // Великі літери "я", "є", "ї", "ґ"
-                $result .= "\xD1" . ($secondByte + ("\x90" - "\x80"));
-            } else {
-                $result .= $byte . $secondByte;
-            }
-            $i++; // Пропускаємо наступний байт
-        } else {
-            $result .= $byte; // Залишаємо без змін
+        }
+        // Перетворення великих латинських літер
+        elseif ($byte >= 'A' && $byte <= 'Z') {
+            $result .= chr(ord($byte) + 32);
+        }
+        // Якщо це просто символ або вже маленька літера
+        else {
+            $result .= $byte;
         }
 
-        $i++; // Наступний байт
+        $i++; // Переходимо до наступного байта
     }
 
     return $result;
 }
 
-// Лічильник появ слів
+//// **Тестуємо коректність роботи**
+//$testWords = ["ТЕКСТ", "ОХ", "ЛОЛ", "текст", "ох", "лол"];
+//foreach ($testWords as $w) {
+//    echo "До: $w => Після: " . toLowerCase($w) . "\n";
+//}
 $wordCounts = [];
 foreach ($words as $word) {
     $lowercaseWord = toLowerCase($word); // Перетворюємо у нижній регістр
@@ -168,22 +175,19 @@ foreach ($words as $word) {
     }
 }
 
-// Відбираємо слова, які зустрічаються від 5 до 10 разів
 $result = [];
 foreach ($wordCounts as $word => $count) {
     if ($count >= 5 && $count <= 10) {
-        $result[] = [$word, $count];
+        $result[] = $word;
     }
 }
 
 // Виведення результатів
 if (!empty($result)) {
-    echo "Слова, які зустрічаються від 5 до 10 разів:\n";
-    foreach ($result as $wordData) {
-        echo "<br>" . $wordData[0] . " зустрічається - " . $wordData[1] . " разів \n";
+    echo "Слова, які зустрічаються від 5 до 10 разів:<br>";
+    foreach ($result as $word) {
+        echo "$word зустрічається - " . $wordCounts[$word] . " раз(ів)<br>";
     }
 } else {
-    echo "Слова не знайдено.\n";
+    echo "Слова не знайдено.<br>";
 }
-
-?>
